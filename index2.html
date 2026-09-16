@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Calculadora de Tiempos y Ritmos</title>
+    <style>
+        :root {
+            --primary-color: #1e3a8a;
+            --primary-light: #3b82f6;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --border-color: #e2e8f0;
+        }
+
+        * {
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 15px 10px;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .controls-grid {
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-wrap: wrap;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+            -webkit-flex: 1 1 280px;
+            flex: 1 1 280px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            background-color: #fff;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .input-inline {
+            display: -webkit-flex;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-inline .form-group {
+            -webkit-flex: 1;
+            flex: 1;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .badge {
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .view-toggle-container {
+            display: -webkit-flex;
+            display: flex;
+            -webkit-justify-content: space-between;
+            justify-content: space-between;
+            -webkit-align-items: center;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .view-toggle {
+            display: -webkit-inline-flex;
+            display: inline-flex;
+            background: #e2e8f0;
+            padding: 3px;
+            border-radius: 8px;
+        }
+
+        .view-btn {
+            padding: 6px 12px;
+            border: none;
+            background: transparent;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        .view-btn.active {
+            background: #fff;
+            color: var(--primary-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* --- FIX SAFARI iOS TABLE OVERFLOW --- */
+        .table-outer-wrapper {
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            margin-bottom: 25px;
+        }
+
+        .table-scroll-container {
+            width: 100%;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            display: block;
+        }
+
+        table.custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: 0.85rem;
+            table-layout: auto;
+        }
+
+        table.custom-table th, 
+        table.custom-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap !important;
+        }
+
+        table.custom-table th {
+            background-color: #f1f5f9;
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        .highlight-col {
+            background-color: #f8fafc;
+            font-weight: 600;
+        }
+
+        .highlight-row {
+            background-color: #eff6ff !important;
+        }
+
+        /* VISTA TARJETAS (Móvil) */
+        .cards-view {
+            display: none;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .dist-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .dist-card.highlight-card {
+            border: 2px solid var(--primary-light);
+            background: #f0f9ff;
+        }
+
+        .dist-card-header {
+            display: -webkit-flex;
+            display: flex;
+            -webkit-justify-content: space-between;
+            justify-content: space-between;
+            -webkit-align-items: center;
+            align-items: center;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .dist-card-header h3 {
+            font-size: 1.1rem;
+            color: var(--primary-color);
+        }
+
+        .efforts-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .effort-item {
+            background: #f8fafc;
+            padding: 6px 4px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #edf2f7;
+        }
+
+        .effort-item.effort-100 {
+            background: #e0f2fe;
+            border-color: #bae6fd;
+        }
+
+        .effort-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            display: block;
+        }
+
+        .effort-value {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .show-block { display: block !important; }
+        .show-flex { display: -webkit-flex !important; display: flex !important; }
+        .hide-all { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Tabla de Tiempos y Esfuerzo</h1>
+        <p class="subtitle">Calculadora de ritmos de entrenamiento</p>
+    </header>
+
+    <div class="controls-grid">
+        <div class="card">
+            <div class="card-title">👤 Atleta</div>
+            <div class="form-group">
+                <label for="athleteSelect">Seleccionar</label>
+                <select id="athleteSelect" onchange="loadAthleteData()">
+                    <option value="1">Irene (100m - 13.05s)</option>
+                    <option value="2">Atleta B (100m - 12.20s)</option>
+                    <option value="3">Atleta C (100m - 11.50s)</option>
+                    <option value="custom">Personalizado...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="athleteName" value="Irene" onchange="updateCustomName()">
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">⚡ Marca Base (100%)</div>
+            <div class="input-inline">
+                <div class="form-group">
+                    <label for="baseDistance">Dist. (m)</label>
+                    <input type="number" id="baseDistance" value="100" min="1" oninput="recalculate()">
+                </div>
+                <div class="form-group">
+                    <label for="baseTime">Tiempo (s)</label>
+                    <input type="number" id="baseTime" value="13.05" min="0.1" step="0.01" oninput="recalculate()">
+                </div>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">
+                Velocidad: <span id="baseSpeed" class="badge">7.66 m/s</span>
+            </p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">➕ Añadir Distancia</div>
+            <div class="form-group">
+                <label for="newDistance">Metros</label>
+                <input type="number" id="newDistance" placeholder="Ej. 70, 90" min="1">
+            </div>
+            <button class="btn" onclick="addCustomDistance()">Añadir a la Lista</button>
+        </div>
+    </div>
+
+    <div class="view-toggle-container">
+        <div class="card-title" style="margin: 0;">📊 Tiempos</div>
+        <div class="view-toggle">
+            <button id="btnViewCards" class="view-btn" onclick="setView('cards')">📱 Tarjetas</button>
+            <button id="btnViewTable" class="view-btn" onclick="setView('table')">💻 Tabla</button>
+        </div>
+    </div>
+
+    <!-- VISTA TABLA CON SCROLL CORREGIDO -->
+    <div id="tableViewWrapper" class="table-outer-wrapper show-block">
+        <div class="table-scroll-container">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Dist.</th>
+                        <th>100%</th>
+                        <th>95%</th>
+                        <th>90%</th>
+                        <th>85%</th>
+                        <th>80%</th>
+                        <th>75%</th>
+                        <th>70%</th>
+                        <th>65%</th>
+                        <th>60%</th>
+                        <th>✕</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- VISTA TARJETAS -->
+    <div id="cardsViewWrapper" class="cards-view"></div>
+</div>
+
+<script>
+    var distances = [30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400];
+    var efforts = [100, 95, 90, 85, 80, 75, 70, 65, 60];
+
+    var athletesData = {
+        "1": { name: "Irene", dist: 100, time: 13.05 },
+        "2": { name: "Atleta B", dist: 100, time: 12.20 },
+        "3": { name: "Atleta C", dist: 100, time: 11.50 }
+    };
+
+    function setView(viewType) {
+        var tableWrap = document.getElementById("tableViewWrapper");
+        var cardsWrap = document.getElementById("cardsViewWrapper");
+        var btnCards = document.getElementById("btnViewCards");
+        var btnTable = document.getElementById("btnViewTable");
+
+        if (viewType === 'table') {
+            tableWrap.className = "table-outer-wrapper show-block";
+            cardsWrap.className = "cards-view hide-all";
+            btnTable.className = "view-btn active";
+            btnCards.className = "view-btn";
+        } else {
+            tableWrap.className = "table-outer-wrapper hide-all";
+            cardsWrap.className = "cards-view show-flex";
+            btnCards.className = "view-btn active";
+            btnTable.className = "view-btn";
+        }
+    }
+
+    function loadAthleteData() {
+        var select = document.getElementById("athleteSelect");
+        var val = select.value;
+        if (val !== "custom") {
+            var athlete = athletesData[val];
+            document.getElementById("athleteName").value = athlete.name;
+            document.getElementById("baseDistance").value = athlete.dist;
+            document.getElementById("baseTime").value = athlete.time;
+        }
+        recalculate();
+    }
+
+    function updateCustomName() {
+        document.getElementById("athleteSelect").value = "custom";
+    }
+
+    function formatTime(seconds) {
+        if (seconds < 60) {
+            return seconds.toFixed(2) + "s";
+        }
+        var mins = Math.floor(seconds / 60);
+        var secs = (seconds % 60).toFixed(2);
+        return mins + ":" + (secs < 10 ? '0' : '') + secs;
+    }
+
+    function recalculate() {
+        var baseDist = parseFloat(document.getElementById("baseDistance").value);
+        var baseTime = parseFloat(document.getElementById("baseTime").value);
+        
+        if (!baseDist || !baseTime || baseDist <= 0 || baseTime <= 0) return;
+
+        var baseSpeed = baseDist / baseTime;
+        document.getElementById("baseSpeed").innerText = baseSpeed.toFixed(2) + " m/s";
+
+        var tbody = document.getElementById("tableBody");
+        var cardsContainer = document.getElementById("cardsViewWrapper");
+        
+        tbody.innerHTML = "";
+        cardsContainer.innerHTML = "";
+
+        distances.sort(function(a, b){ return a - b; });
+
+        for (var i = 0; i < distances.length; i++) {
+            var d = distances[i];
+            var time100 = (d / baseDist) * baseTime;
+            var isBase = (d === baseDist);
+
+            // FILA TABLA
+            var tr = document.createElement("tr");
+            if (isBase) tr.className = "highlight-row";
+
+            var tdDist = document.createElement("td");
+            tdDist.innerHTML = "<strong>" + d + "m</strong>";
+            tr.appendChild(tdDist);
+
+            for (var j = 0; j < efforts.length; j++) {
+                var e = efforts[j];
+                var td = document.createElement("td");
+                var t = time100 / (e / 100);
+                td.innerText = formatTime(t);
+                if (e === 100) td.className = "highlight-col";
+                tr.appendChild(td);
+            }
+
+            var tdAction = document.createElement("td");
+            var btnDel = document.createElement("button");
+            btnDel.innerText = "✕";
+            btnDel.style.cssText = "background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;";
+            btnDel.setAttribute("data-dist", d);
+            btnDel.onclick = function() { removeDistance(parseInt(this.getAttribute("data-dist"))); };
+            tdAction.appendChild(btnDel);
+            tr.appendChild(tdAction);
+
+            tbody.appendChild(tr);
+
+            // TARJETA MÓVIL
+            var card = document.createElement("div");
+            card.className = "dist-card" + (isBase ? " highlight-card" : "");
+
+            var cardHTML = '<div class="dist-card-header">' +
+                           '<h3>' + d + ' m ' + (isBase ? '<span class="badge">Base</span>' : '') + '</h3>' +
+                           '<button onclick="removeDistance(' + d + ')" style="background:none; border:none; color:#ef4444; font-size:1.1rem; cursor:pointer;">✕</button>' +
+                           '</div><div class="efforts-grid">';
+
+            for (var k = 0; k < efforts.length; k++) {
+                var eff = efforts[k];
+                var tEff = time100 / (eff / 100);
+                cardHTML += '<div class="effort-item ' + (eff === 100 ? 'effort-100' : '') + '">' +
+                            '<span class="effort-label">' + eff + '%</span>' +
+                            '<span class="effort-value">' + formatTime(tEff) + '</span>' +
+                            '</div>';
+            }
+
+            cardHTML += '</div>';
+            card.innerHTML = cardHTML;
+            cardsContainer.appendChild(card);
+        }
+    }
+
+    function addCustomDistance() {
+        var input = document.getElementById("newDistance");
+        var val = parseInt(input.value);
+        if (val && val > 0 && distances.indexOf(val) === -1) {
+            distances.push(val);
+            input.value = "";
+            recalculate();
+        }
+    }
+
+    function removeDistance(d) {
+        distances = distances.filter(function(dist) { return dist !== d; });
+        recalculate();
+    }
+
+    window.onload = function() {
+        recalculate();
+    };
+</script>
+
+</body>
+</html>
