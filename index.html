@@ -180,7 +180,9 @@
             tbody.innerHTML = '';
 
             userSettings.distances.forEach(d => {
-                const time100 = (d / baseDist) * baseT;
+                // Exponente de fatiga (1.08 es ideal para transferir de sprints a distancias mayores)
+                const m = 1.08; 
+                const time100 = baseT * Math.pow(d / baseDist, m);
                 const isBase = d === baseDist;
 
                 // --- VISTA MÓVIL (Tarjeta) ---
