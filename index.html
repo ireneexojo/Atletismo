@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora de Tiempos - Con Usuarios</title>
-    <!-- Tailwind CSS para el diseño -->
+    <title>Calculadora de Tiempos</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Firebase SDKs vía CDN -->
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import {
@@ -25,7 +25,6 @@
             getDoc
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Configuración de tu proyecto en Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyC20hdEsrcGjCdfrGZ1bQKaQI1dAULZUaY",
             authDomain: "atletismo-27061.firebaseapp.com",
@@ -42,12 +41,10 @@
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
-            console.log("Firebase inicializado correctamente.");
         } catch (e) {
             console.error("Error al inicializar Firebase:", e);
         }
 
-        // Estado Global
         let currentUser = null;
         let userSettings = {
             baseDistance: 100,
@@ -55,7 +52,6 @@
             distances: [30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400]
         };
 
-        // Escuchar Estado de Autenticación
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
@@ -63,9 +59,8 @@
                 document.getElementById('app-section').classList.remove('hidden');
                 document.getElementById('user-email').innerText = user.email;
 
-                // Cargar datos del usuario desde Firestore
                 await loadUserData(user.uid);
-                renderTable();
+                renderViews();
             } else {
                 currentUser = null;
                 document.getElementById('auth-section').classList.remove('hidden');
@@ -73,7 +68,6 @@
             }
         });
 
-        // Registro de usuario
         window.handleRegister = async () => {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value.trim();
@@ -93,12 +87,10 @@
                 alert("¡Usuario registrado con éxito!");
                 await saveUserData(res.user.uid);
             } catch (err) {
-                console.error("Error completo:", err);
                 alert("Error en el registro: " + err.message);
             }
         };
 
-        // Inicio de sesión
         window.handleLogin = async () => {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value.trim();
@@ -111,17 +103,14 @@
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (err) {
-                console.error("Error en login:", err);
                 alert("Error al iniciar sesión: " + err.message);
             }
         };
 
-        // Cerrar sesión
         window.handleLogout = () => {
             signOut(auth);
         };
 
-        // Cargar datos del usuario desde Firestore
         async function loadUserData(uid) {
             try {
                 const docRef = doc(db, "users", uid);
@@ -138,7 +127,6 @@
             }
         }
 
-        // Guardar datos en Firestore
         async function saveUserData(uid = currentUser?.uid) {
             if (!uid) return;
             const baseDist = parseFloat(document.getElementById('baseDistance').value) || 100;
@@ -149,7 +137,7 @@
 
             try {
                 await setDoc(doc(db, "users", uid), userSettings);
-                renderTable();
+                renderViews();
             } catch (err) {
                 console.error("Error al guardar datos:", err);
             }
@@ -157,7 +145,6 @@
 
         window.updateSettings = () => saveUserData();
 
-        // Añadir distancia
         window.addDistance = () => {
             const val = parseFloat(document.getElementById('newDistance').value);
             if (val && !userSettings.distances.includes(val)) {
@@ -168,26 +155,62 @@
             }
         };
 
-        // Eliminar distancia
         window.removeDistance = (dist) => {
             userSettings.distances = userSettings.distances.filter(d => d !== dist);
             saveUserData();
         };
 
-        // Renderizar tabla
-        function renderTable() {
+        function formatTime(seconds) {
+            return seconds < 60
+                ? seconds.toFixed(2) + 's'
+                : `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, '0')}s`;
+        }
+
+        function renderViews() {
             const baseDist = userSettings.baseDistance;
             const baseT = userSettings.baseTime;
             const percentages = [100, 95, 90, 85, 80, 75, 70, 65, 60];
 
+            // 1. Renderizar Vista Móvil (Tarjetas)
+            const mobileContainer = document.getElementById('mobile-cards-container');
+            mobileContainer.innerHTML = '';
+
+            // 2. Renderizar Vista Escritorio (Tabla)
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
 
             userSettings.distances.forEach(d => {
-                const tr = document.createElement('tr');
                 const time100 = (d / baseDist) * baseT;
                 const isBase = d === baseDist;
 
+                // --- VISTA MÓVIL (Tarjeta) ---
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-lg border shadow-sm ${isBase ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'}`;
+                
+                let cardHtml = `
+                    <div class="flex justify-between items-center mb-3 border-b pb-2">
+                        <span class="text-lg font-bold ${isBase ? 'text-blue-700' : 'text-gray-800'}">${d} metros ${isBase ? '(Base)' : ''}</span>
+                        <button onclick="removeDistance(${d})" class="text-red-500 hover:text-red-700 font-bold px-2">✕</button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                `;
+
+                percentages.forEach(pct => {
+                    const timeSec = time100 / (pct / 100);
+                    cardHtml += `
+                        <div class="bg-gray-100 p-2 rounded">
+                            <div class="text-xs text-gray-500 font-semibold">${pct}%</div>
+                            <div class="text-sm font-bold text-gray-800">${formatTime(timeSec)}</div>
+                        </div>
+                    `;
+                });
+
+                cardHtml += `</div>`;
+                card.innerHTML = cardHtml;
+                mobileContainer.appendChild(card);
+
+                // --- VISTA ESCRITORIO (Fila de Tabla) ---
+                const tr = document.createElement('tr');
                 let rowHtml = `<td class="p-3 border text-center font-bold ${isBase ? 'bg-blue-100 text-blue-700' : ''}">
                     ${d}m 
                     <button onclick="removeDistance(${d})" class="ml-2 text-red-500 hover:text-red-700 font-normal">✕</button>
@@ -195,11 +218,7 @@
 
                 percentages.forEach(pct => {
                     const timeSec = time100 / (pct / 100);
-                    const formatted = timeSec < 60
-                        ? timeSec.toFixed(2) + 's'
-                        : `${Math.floor(timeSec / 60)}:${(timeSec % 60).toFixed(2).padStart(5, '0')}s`;
-
-                    rowHtml += `<td class="p-3 border text-center text-sm ${pct === 100 ? 'font-semibold bg-gray-50' : ''}">${formatted}</td>`;
+                    rowHtml += `<td class="p-3 border text-center text-sm ${pct === 100 ? 'font-semibold bg-gray-50' : ''}">${formatTime(timeSec)}</td>`;
                 });
 
                 tr.innerHTML = rowHtml;
@@ -209,71 +228,65 @@
     </script>
 </head>
 
-<body class="bg-gray-100 p-4 font-sans">
+<body class="bg-gray-100 p-3 sm:p-6 font-sans">
     <div class="max-w-6xl mx-auto">
-        <!-- SECCIÓN 1: Autenticación (Login / Registro) -->
-        <div id="auth-section" class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md mt-10">
+        <!-- SECCIÓN 1: Autenticación -->
+        <div id="auth-section" class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md mt-6">
             <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">Acceso Usuarios</h2>
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Email</label>
-                    <input type="email" id="email" class="w-full mt-1 p-2 border rounded-md"
-                        placeholder="atleta@deporte.com">
+                    <input type="email" id="email" class="w-full mt-1 p-2 border rounded-md" placeholder="atleta@deporte.com">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Contraseña</label>
-                    <input type="password" id="password" class="w-full mt-1 p-2 border rounded-md"
-                        placeholder="••••••••">
+                    <input type="password" id="password" class="w-full mt-1 p-2 border rounded-md" placeholder="••••••••">
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="handleLogin()"
-                        class="w-1/2 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">Iniciar Sesión</button>
-                    <button onclick="handleRegister()"
-                        class="w-1/2 bg-gray-600 text-white py-2 rounded-md hover:bg-gray-700">Registrarse</button>
+                    <button onclick="handleLogin()" class="w-1/2 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">Iniciar Sesión</button>
+                    <button onclick="handleRegister()" class="w-1/2 bg-gray-600 text-white py-2 rounded-md hover:bg-gray-700">Registrarse</button>
                 </div>
             </div>
         </div>
 
-        <!-- SECCIÓN 2: Aplicación Principal (Protegida) -->
-        <div id="app-section" class="hidden space-y-6">
-            <!-- Barra superior del usuario -->
+        <!-- SECCIÓN 2: Aplicación Principal -->
+        <div id="app-section" class="hidden space-y-4 sm:space-y-6">
+            <!-- Barra superior -->
             <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow">
-                <div>
-                    <span class="text-gray-600">Sesión iniciada como:</span>
-                    <strong id="user-email" class="text-blue-600 ml-1"></strong>
+                <div class="text-sm sm:text-base">
+                    <span class="text-gray-600 hidden sm:inline">Usuario:</span>
+                    <strong id="user-email" class="text-blue-600"></strong>
                 </div>
-                <button onclick="handleLogout()"
-                    class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">Cerrar Sesión</button>
+                <button onclick="handleLogout()" class="bg-red-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 text-sm rounded-md hover:bg-red-600">Salir</button>
             </div>
 
             <!-- Panel de Controles -->
-            <div class="bg-white p-6 rounded-lg shadow space-y-4">
-                <h3 class="text-lg font-bold text-gray-800">Ajustes de Marca Base</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-4 sm:p-6 rounded-lg shadow space-y-4">
+                <h3 class="text-base sm:text-lg font-bold text-gray-800">Ajustes de Marca Base</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div>
-                        <label class="block text-sm text-gray-600">Distancia Base (m)</label>
-                        <input type="number" id="baseDistance" value="100" onchange="updateSettings()"
-                            class="w-full p-2 border rounded-md">
+                        <label class="block text-xs sm:text-sm text-gray-600">Distancia Base (m)</label>
+                        <input type="number" id="baseDistance" value="100" onchange="updateSettings()" class="w-full p-2 border rounded-md text-sm">
                     </div>
                     <div>
-                        <label class="block text-sm text-gray-600">Tiempo Base (s)</label>
-                        <input type="number" step="0.01" id="baseTime" value="13.05" onchange="updateSettings()"
-                            class="w-full p-2 border rounded-md">
+                        <label class="block text-xs sm:text-sm text-gray-600">Tiempo Base (s)</label>
+                        <input type="number" step="0.01" id="baseTime" value="13.05" onchange="updateSettings()" class="w-full p-2 border rounded-md text-sm">
                     </div>
                     <div>
-                        <label class="block text-sm text-gray-600">Añadir Distancia (m)</label>
+                        <label class="block text-xs sm:text-sm text-gray-600">Añadir Distancia (m)</label>
                         <div class="flex gap-2">
-                            <input type="number" id="newDistance" class="w-full p-2 border rounded-md"
-                                placeholder="Ej. 70">
-                            <button onclick="addDistance()"
-                                class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Añadir</button>
+                            <input type="number" id="newDistance" class="w-full p-2 border rounded-md text-sm" placeholder="Ej. 70">
+                            <button onclick="addDistance()" class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 text-sm">Añadir</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Tabla de Tiempos -->
-            <div class="bg-white rounded-lg shadow overflow-x-auto">
+            <!-- VISTA MÓVIL: Tarjetas (Se muestra solo en móviles) -->
+            <div id="mobile-cards-container" class="space-y-3 md:hidden"></div>
+
+            <!-- VISTA ESCRITORIO: Tabla (Se muestra solo en pantallas medianas/grandes) -->
+            <div class="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
                 <table class="w-full border-collapse">
                     <thead>
                         <tr class="bg-gray-800 text-white">
