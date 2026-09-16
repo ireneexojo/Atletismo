@@ -7,8 +7,9 @@
     <title>Calculadora de Tiempos - Con Usuarios</title>
     <!-- Tailwind CSS para el diseño -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDKs -->
-    <!-- <script type="module">
+    
+    <!-- Firebase SDKs vía CDN -->
+    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import {
             getAuth,
@@ -24,14 +25,7 @@
             getDoc
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "firebase/app";
-        import { getAnalytics } from "firebase/analytics";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
-
-        // Your web app's Firebase configuration
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        // Configuración de tu proyecto en Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyC20hdEsrcGjCdfrGZ1bQKaQI1dAULZUaY",
             authDomain: "atletismo-27061.firebaseapp.com",
@@ -42,9 +36,16 @@
             measurementId: "G-C7SRZLBCRY"
         };
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
+        let auth, db;
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            console.log("Firebase inicializado correctamente.");
+        } catch (e) {
+            console.error("Error al inicializar Firebase:", e);
+        }
 
         // Estado Global
         let currentUser = null;
@@ -72,49 +73,72 @@
             }
         });
 
-        // Autenticación: Registro
+        // Registro de usuario
         window.handleRegister = async () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!email || !password) {
+                alert("Por favor, introduce email y contraseña.");
+                return;
+            }
+
+            if (password.length < 6) {
+                alert("La contraseña debe tener al menos 6 caracteres.");
+                return;
+            }
+
             try {
                 const res = await createUserWithEmailAndPassword(auth, email, password);
-                // Guardar valores por defecto al registrarse
+                alert("¡Usuario registrado con éxito!");
                 await saveUserData(res.user.uid);
             } catch (err) {
-                alert("Error al registrar: " + err.message);
+                console.error("Error completo:", err);
+                alert("Error en el registro: " + err.message);
             }
         };
 
-        // Autenticación: Login
+        // Inicio de sesión
         window.handleLogin = async () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!email || !password) {
+                alert("Por favor, introduce email y contraseña.");
+                return;
+            }
+
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (err) {
+                console.error("Error en login:", err);
                 alert("Error al iniciar sesión: " + err.message);
             }
         };
 
-        // Autenticación: Logout
+        // Cerrar sesión
         window.handleLogout = () => {
             signOut(auth);
         };
 
-        // Cargar Datos de Firestore
+        // Cargar datos del usuario desde Firestore
         async function loadUserData(uid) {
-            const docRef = doc(db, "users", uid);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                userSettings = docSnap.data();
-                document.getElementById('baseDistance').value = userSettings.baseDistance;
-                document.getElementById('baseTime').value = userSettings.baseTime;
-            } else {
-                await saveUserData(uid);
+            try {
+                const docRef = doc(db, "users", uid);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    userSettings = docSnap.data();
+                    document.getElementById('baseDistance').value = userSettings.baseDistance;
+                    document.getElementById('baseTime').value = userSettings.baseTime;
+                } else {
+                    await saveUserData(uid);
+                }
+            } catch (err) {
+                console.error("Error cargando datos:", err);
             }
         }
 
-        // Guardar Datos en Firestore
+        // Guardar datos en Firestore
         async function saveUserData(uid = currentUser?.uid) {
             if (!uid) return;
             const baseDist = parseFloat(document.getElementById('baseDistance').value) || 100;
@@ -123,13 +147,17 @@
             userSettings.baseDistance = baseDist;
             userSettings.baseTime = baseT;
 
-            await setDoc(doc(db, "users", uid), userSettings);
-            renderTable();
+            try {
+                await setDoc(doc(db, "users", uid), userSettings);
+                renderTable();
+            } catch (err) {
+                console.error("Error al guardar datos:", err);
+            }
         }
 
         window.updateSettings = () => saveUserData();
 
-        // Gestión de Distancias
+        // Añadir distancia
         window.addDistance = () => {
             const val = parseFloat(document.getElementById('newDistance').value);
             if (val && !userSettings.distances.includes(val)) {
@@ -140,12 +168,13 @@
             }
         };
 
+        // Eliminar distancia
         window.removeDistance = (dist) => {
             userSettings.distances = userSettings.distances.filter(d => d !== dist);
             saveUserData();
         };
 
-        // Renderizar Tabla
+        // Renderizar tabla
         function renderTable() {
             const baseDist = userSettings.baseDistance;
             const baseT = userSettings.baseTime;
@@ -177,86 +206,6 @@
                 tbody.appendChild(tr);
             });
         }
-    </script> -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import {
-            getAuth,
-            createUserWithEmailAndPassword,
-            signInWithEmailAndPassword,
-            signOut,
-            onAuthStateChanged
-        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import {
-            getFirestore,
-            doc,
-            setDoc,
-            getDoc
-        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "firebase/app";
-        import { getAnalytics } from "firebase/analytics";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
-
-        // Your web app's Firebase configuration
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-        const firebaseConfig = {
-        apiKey: "AIzaSyC20hdEsrcGjCdfrGZ1bQKaQI1dAULZUaY",
-        authDomain: "atletismo-27061.firebaseapp.com",
-        projectId: "atletismo-27061",
-        storageBucket: "atletismo-27061.firebasestorage.app",
-        messagingSenderId: "4223238228",
-        appId: "1:4223238228:web:59947fced3c5feca9aadc1",
-        measurementId: "G-C7SRZLBCRY"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-
-        let auth, db;
-
-        try {
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            console.log("Firebase inicializado correctamente.");
-        } catch (e) {
-            alert("Error de configuración inicial: " + e.message);
-        }
-
-        let currentUser = null;
-        let userSettings = {
-            baseDistance: 100,
-            baseTime: 13.05,
-            distances: [30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400]
-        };
-
-        window.handleRegister = async () => {
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value.trim();
-
-            if (!email || !password) {
-                alert("Introduce un correo y una contraseña.");
-                return;
-            }
-
-            if (password.length < 6) {
-                alert("La contraseña debe tener al menos 6 caracteres.");
-                return;
-            }
-
-            try {
-                const res = await createUserWithEmailAndPassword(auth, email, password);
-                alert("¡Usuario registrado con éxito!");
-                await saveUserData(res.user.uid);
-            } catch (err) {
-                console.error("Error completo:", err);
-                alert("Error en el registro: " + err.message);
-            }
-        };
     </script>
 </head>
 
