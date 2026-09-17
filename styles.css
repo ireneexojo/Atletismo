@@ -164,7 +164,7 @@ input:focus {
 }
 
 .user-info strong {
-    color: var(--primary);
+    /* color: var(--primary); */
     text-transform: capitalize;
 }
 
