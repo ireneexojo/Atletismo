@@ -41,13 +41,13 @@ let userSettings = {
     distances: [30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400]
 };
 
-// ENLACE DE EVENTOS AL DOM
+// VINCULACIÓN DE EVENTOS CON EL DOM
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-login').addEventListener('click', handleLogin);
     document.getElementById('btn-register').addEventListener('click', handleRegister);
     document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
     document.getElementById('btn-add-distance').addEventListener('click', addDistance);
-
+    
     document.getElementById('baseDistance').addEventListener('change', updateSettings);
     document.getElementById('baseTime').addEventListener('change', updateSettings);
 
@@ -57,14 +57,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// CONTROL DE AUTENTICACIÓN
+// SESIÓN DE USUARIO
 onAuthStateChanged(auth, async (user) => {
+    const userHeader = document.getElementById('user-header');
     const authSection = document.getElementById('auth-section');
     const appSection = document.getElementById('app-section');
 
     if (user) {
         currentUser = user;
         authSection.classList.add('hidden');
+        userHeader.classList.remove('hidden');
         appSection.classList.remove('hidden');
 
         await loadUserData(user.uid);
@@ -72,6 +74,7 @@ onAuthStateChanged(auth, async (user) => {
         renderViews();
     } else {
         currentUser = null;
+        userHeader.classList.add('hidden');
         authSection.classList.remove('hidden');
         appSection.classList.add('hidden');
     }
@@ -134,7 +137,7 @@ async function handleRegister() {
         userSettings.username = username;
         await saveUserData(res.user.uid);
 
-        alert("¡Registro exitoso!");
+        alert("¡Registro completado con éxito!");
     } catch (err) {
         alert("Error en el registro: " + err.message);
     }
@@ -174,7 +177,7 @@ async function handleLogin() {
     }
 }
 
-// FIRESTORE
+// PERSISTENCIA DE DATOS
 async function loadUserData(uid) {
     try {
         const docRef = doc(db, "users", uid);
@@ -224,7 +227,7 @@ function removeDistance(dist) {
     saveUserData();
 }
 
-// RENDERIZADO
+// FORMATO Y CÁLCULOS
 function formatTime(seconds) {
     return seconds < 60
         ? seconds.toFixed(2) + 's'
@@ -239,7 +242,7 @@ function renderViews() {
 
     const mobileContainer = document.getElementById('mobile-cards-container');
     const tbody = document.getElementById('table-body');
-
+    
     mobileContainer.innerHTML = '';
     tbody.innerHTML = '';
 
@@ -250,7 +253,7 @@ function renderViews() {
         // Tarjetas Móviles
         const card = document.createElement('div');
         card.className = `distance-card ${isBase ? 'is-base' : ''}`;
-
+        
         let cardHtml = `
             <div class="card-header">
                 <span>${d} metros ${isBase ? '(Base)' : ''}</span>
