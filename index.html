@@ -11,7 +11,7 @@
             font-family: 'Inter', sans-serif;
         }
     </style>
-    
+
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -29,14 +29,14 @@
             getDoc
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // REEMPLAZA CON TU CONFIGURACIÓN DE FIREBASE
         const firebaseConfig = {
-            apiKey: "AIzaSyC20hdEsrcGjCdfrGZ1bQKaQI1dAULZUaY",
-            authDomain: "atletismo-27061.firebaseapp.com",
-            projectId: "atletismo-27061",
-            storageBucket: "atletismo-27061.firebasestorage.app",
-            messagingSenderId: "4223238228",
-            appId: "1:4223238228:web:59947fced3c5feca9aadc1",
-            measurementId: "G-C7SRZLBCRY"
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_PROJECT_ID.firebaseapp.com",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_PROJECT_ID.appspot.com",
+            messagingSenderId: "TU_SENDER_ID",
+            appId: "TU_APP_ID"
         };
 
         let auth, db;
@@ -54,43 +54,53 @@
             username: "",
             baseDistance: 100,
             baseTime: 13.05,
-            distances: [30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400]
+            distances: [30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400],
+            customTimes: {} // Objeto para almacenar marcas al 100% personalizadas por distancia { dist: tiempo }
         };
 
-        // Cambiar entre pantallas según sesión
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('app-section').classList.remove('hidden');
+        // Escuchar el estado de autenticación
+        if (auth) {
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('auth-section').classList.add('hidden');
+                    document.getElementById('app-section').classList.remove('hidden');
 
-                await loadUserData(user.uid);
-                document.getElementById('user-display-name').innerText = userSettings.username || user.email;
-                renderViews();
-            } else {
-                currentUser = null;
-                document.getElementById('auth-section').classList.remove('hidden');
-                document.getElementById('app-section').classList.add('hidden');
-            }
-        });
+                    await loadUserData(user.uid);
+                    document.getElementById('user-display-name').innerText = userSettings.username || user.email;
+                    renderViews();
+                } else {
+                    currentUser = null;
+                    document.getElementById('auth-section').classList.remove('hidden');
+                    document.getElementById('app-section').classList.add('hidden');
+                }
+            });
+        }
 
-        // Toggle entre vista Login y Registro
-        window.showRegisterView = (showReg) => {
+        // Cambio visual entre Login y Registro
+        function showRegisterView(showReg) {
+            const regContainer = document.getElementById('reg-username-container');
+            const btnLogin = document.getElementById('btn-login');
+            const btnRegister = document.getElementById('btn-register');
+            const toggleMsg = document.getElementById('toggle-msg');
+
             if (showReg) {
-                document.getElementById('reg-username-container').classList.remove('hidden');
-                document.getElementById('btn-login').classList.add('hidden');
-                document.getElementById('btn-register').classList.remove('hidden');
-                document.getElementById('toggle-msg').innerHTML = '¿Ya tienes cuenta? <a href="#" onclick="showRegisterView(false)" class="text-blue-600 underline">Inicia Sesión</a>';
+                regContainer.classList.remove('hidden');
+                btnLogin.classList.add('hidden');
+                btnRegister.classList.remove('hidden');
+                toggleMsg.innerHTML = '¿Ya tienes cuenta? <a href="#" id="link-login" class="text-blue-600 underline">Inicia Sesión</a>';
+                document.getElementById('link-login').onclick = (e) => { e.preventDefault(); showRegisterView(false); };
             } else {
-                document.getElementById('reg-username-container').classList.add('hidden');
-                document.getElementById('btn-login').classList.remove('hidden');
-                document.getElementById('btn-register').classList.add('hidden');
-                document.getElementById('toggle-msg').innerHTML = '¿No tienes cuenta? <a href="#" onclick="showRegisterView(true)" class="text-blue-600 underline">Regístrate</a>';
+                regContainer.classList.add('hidden');
+                btnLogin.classList.remove('hidden');
+                btnRegister.classList.add('hidden');
+                toggleMsg.innerHTML = '¿No tienes cuenta? <a href="#" id="link-register" class="text-blue-600 underline">Regístrate</a>';
+                document.getElementById('link-register').onclick = (e) => { e.preventDefault(); showRegisterView(true); };
             }
-        };
+        }
 
-        // Registro de usuario
-        window.handleRegister = async () => {
+        // Proceso de Registro
+        async function handleRegister() {
             const username = document.getElementById('username').value.trim().toLowerCase();
             const email = document.getElementById('identifier').value.trim();
             const password = document.getElementById('password').value.trim();
@@ -106,22 +116,17 @@
             }
 
             try {
-                // Comprobar si el username ya está ocupado
                 const usernameRef = doc(db, "usernames", username);
                 const usernameSnap = await getDoc(usernameRef);
 
                 if (usernameSnap.exists()) {
-                    alert("Ese nombre de usuario ya está registrado por otra persona.");
+                    alert("Ese nombre de usuario ya está registrado.");
                     return;
                 }
 
-                // Crear usuario en Auth
                 const res = await createUserWithEmailAndPassword(auth, email, password);
-                
-                // Guardar mapeo Username -> Email
                 await setDoc(usernameRef, { email: email, uid: res.user.uid });
 
-                // Guardar perfil del usuario
                 userSettings.username = username;
                 await saveUserData(res.user.uid);
 
@@ -129,10 +134,10 @@
             } catch (err) {
                 alert("Error en el registro: " + err.message);
             }
-        };
+        }
 
-        // Inicio de sesión (Soporta Email o Username)
-        window.handleLogin = async () => {
+        // Proceso de Inicio de Sesión
+        async function handleLogin() {
             const input = document.getElementById('identifier').value.trim();
             const password = document.getElementById('password').value.trim();
 
@@ -143,7 +148,6 @@
 
             let loginEmail = input;
 
-            // Si no contiene '@', asumimos que metió un Nombre de Usuario
             if (!input.includes('@')) {
                 const usernameLower = input.toLowerCase();
                 try {
@@ -165,16 +169,20 @@
             } catch (err) {
                 alert("Error al iniciar sesión: " + err.message);
             }
-        };
+        }
 
-        window.handleLogout = () => signOut(auth);
-
+        // Cargar y Guardar datos en Firestore
         async function loadUserData(uid) {
             try {
                 const docRef = doc(db, "users", uid);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
-                    userSettings = docSnap.data();
+                    const data = docSnap.data();
+                    userSettings = {
+                        ...userSettings,
+                        ...data,
+                        customTimes: data.customTimes || {}
+                    };
                     document.getElementById('baseDistance').value = userSettings.baseDistance;
                     document.getElementById('baseTime').value = userSettings.baseTime;
                 } else {
@@ -201,9 +209,7 @@
             }
         }
 
-        window.updateSettings = () => saveUserData();
-
-        window.addDistance = () => {
+        function addDistance() {
             const val = parseFloat(document.getElementById('newDistance').value);
             if (val && !userSettings.distances.includes(val)) {
                 userSettings.distances.push(val);
@@ -211,12 +217,29 @@
                 document.getElementById('newDistance').value = '';
                 saveUserData();
             }
-        };
+        }
 
-        window.removeDistance = (dist) => {
+        function removeDistance(dist) {
             userSettings.distances = userSettings.distances.filter(d => d !== dist);
+            delete userSettings.customTimes[dist];
             saveUserData();
-        };
+        }
+
+        // Funciones para personalizar / resetear el tiempo 100% de una distancia
+        function updateCustomTime(dist, newTime) {
+            const parsedTime = parseFloat(newTime);
+            if (parsedTime && parsedTime > 0) {
+                userSettings.customTimes[dist] = parsedTime;
+            } else {
+                delete userSettings.customTimes[dist];
+            }
+            saveUserData();
+        }
+
+        function resetCustomTime(dist) {
+            delete userSettings.customTimes[dist];
+            saveUserData();
+        }
 
         function formatTime(seconds) {
             return seconds < 60
@@ -224,11 +247,12 @@
                 : `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, '0')}s`;
         }
 
+        // Renderizado de la interfaz
         function renderViews() {
             const baseDist = userSettings.baseDistance;
             const baseT = userSettings.baseTime;
             const percentages = [100, 95, 90, 85, 80, 75, 70, 65, 60];
-            const m = 1.08; // Exponente de fatiga de Riegel
+            const m = 1.08;
 
             const mobileContainer = document.getElementById('mobile-cards-container');
             mobileContainer.innerHTML = '';
@@ -237,78 +261,147 @@
             tbody.innerHTML = '';
 
             userSettings.distances.forEach(d => {
-                const time100 = baseT * Math.pow(d / baseDist, m);
+                const isCustom = userSettings.customTimes.hasOwnProperty(d);
+                // Si existe un tiempo personalizado al 100%, se usa ese; de lo contrario se calcula por Riegel
+                const time100 = isCustom ? userSettings.customTimes[d] : baseT * Math.pow(d / baseDist, m);
                 const isBase = d === baseDist;
 
-                // Vista Móvil
+                // --- VISTA MÓVIL ---
                 const card = document.createElement('div');
-                card.className = `p-4 rounded-lg border shadow-sm ${isBase ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'}`;
-                
+                card.className = `p-4 rounded-lg border shadow-sm ${isBase ? 'bg-blue-50 border-blue-300' : isCustom ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-200'}`;
+
                 let cardHtml = `
                     <div class="flex justify-between items-center mb-3 border-b pb-2">
-                        <span class="text-lg font-bold ${isBase ? 'text-blue-700' : 'text-gray-800'}">${d} metros ${isBase ? '(Base)' : ''}</span>
-                        <button onclick="removeDistance(${d})" class="text-red-500 hover:text-red-700 font-bold px-2">✕</button>
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg font-bold ${isBase ? 'text-blue-700' : 'text-gray-800'}">${d}m ${isBase ? '(Base)' : ''}</span>
+                            ${isCustom ? '<span class="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-semibold">Personalizado</span>' : ''}
+                        </div>
+                        <div class="flex items-center gap-1">
+                            ${isCustom ? `<button data-reset="${d}" class="btn-reset text-xs text-amber-700 underline mr-1">Restablecer</button>` : ''}
+                            <button data-remove="${d}" class="btn-remove text-red-500 hover:text-red-700 font-bold px-2">✕</button>
+                        </div>
                     </div>
                     <div class="grid grid-cols-3 gap-2 text-center">
                 `;
 
                 percentages.forEach(pct => {
                     const timeSec = time100 / (pct / 100);
-                    cardHtml += `
-                        <div class="bg-gray-100 p-2 rounded">
-                            <div class="text-xs text-gray-500 font-semibold">${pct}%</div>
-                            <div class="text-sm font-bold text-gray-800">${formatTime(timeSec)}</div>
-                        </div>
-                    `;
+                    if (pct === 100) {
+                        cardHtml += `
+                            <div class="bg-blue-100 p-1.5 rounded border border-blue-200">
+                                <div class="text-xs text-blue-700 font-bold">100%</div>
+                                <input type="number" step="0.01" value="${time100.toFixed(2)}" data-dist="${d}" class="input-custom-time w-full text-center font-bold text-sm bg-white border rounded p-0.5 mt-0.5">
+                            </div>
+                        `;
+                    } else {
+                        cardHtml += `
+                            <div class="bg-gray-100 p-2 rounded">
+                                <div class="text-xs text-gray-500 font-semibold">${pct}%</div>
+                                <div class="text-sm font-bold text-gray-800">${formatTime(timeSec)}</div>
+                            </div>
+                        `;
+                    }
                 });
 
                 cardHtml += `</div>`;
                 card.innerHTML = cardHtml;
                 mobileContainer.appendChild(card);
 
-                // Vista Escritorio
+                // --- VISTA ESCRITORIO ---
                 const tr = document.createElement('tr');
-                let rowHtml = `<td class="p-3 border text-center font-bold ${isBase ? 'bg-blue-100 text-blue-700' : ''}">
-                    ${d}m 
-                    <button onclick="removeDistance(${d})" class="ml-2 text-red-500 hover:text-red-700 font-normal">✕</button>
-                </td>`;
+                let rowHtml = `
+                    <td class="p-3 border text-center font-bold ${isBase ? 'bg-blue-100 text-blue-700' : isCustom ? 'bg-amber-100 text-amber-800' : ''}">
+                        <div class="flex items-center justify-center gap-1">
+                            <span>${d}m</span>
+                            ${isCustom ? `<button data-reset="${d}" class="btn-reset text-xs text-amber-700 hover:text-amber-900 ml-1" title="Restablecer tiempo base">↺</button>` : ''}
+                            <button data-remove="${d}" class="btn-remove text-red-500 hover:text-red-700 font-normal ml-1">✕</button>
+                        </div>
+                    </td>
+                `;
 
                 percentages.forEach(pct => {
                     const timeSec = time100 / (pct / 100);
-                    rowHtml += `<td class="p-3 border text-center text-sm ${pct === 100 ? 'font-semibold bg-gray-50' : ''}">${formatTime(timeSec)}</td>`;
+                    if (pct === 100) {
+                        rowHtml += `
+                            <td class="p-2 border text-center bg-blue-50">
+                                <input type="number" step="0.01" value="${time100.toFixed(2)}" data-dist="${d}" class="input-custom-time w-20 text-center font-bold text-sm border rounded p-1 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            </td>
+                        `;
+                    } else {
+                        rowHtml += `<td class="p-3 border text-center text-sm">${formatTime(timeSec)}</td>`;
+                    }
                 });
 
                 tr.innerHTML = rowHtml;
                 tbody.appendChild(tr);
             });
+
+            // Asignar eventos dinámicos a los elementos generados
+            document.querySelectorAll('.btn-remove').forEach(btn => {
+                btn.onclick = (e) => removeDistance(parseFloat(e.currentTarget.getAttribute('data-remove')));
+            });
+
+            document.querySelectorAll('.btn-reset').forEach(btn => {
+                btn.onclick = (e) => resetCustomTime(parseFloat(e.currentTarget.getAttribute('data-reset')));
+            });
+
+            document.querySelectorAll('.input-custom-time').forEach(input => {
+                input.onchange = (e) => {
+                    const dist = parseFloat(e.currentTarget.getAttribute('data-dist'));
+                    const val = e.currentTarget.value;
+                    updateCustomTime(dist, val);
+                };
+            });
         }
+
+        // Asignación de eventos al cargar el DOM
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btn-login').onclick = handleLogin;
+            document.getElementById('btn-register').onclick = handleRegister;
+            document.getElementById('btn-logout').onclick = () => signOut(auth);
+            document.getElementById('btn-add-distance').onclick = addDistance;
+            document.getElementById('baseDistance').onchange = () => saveUserData();
+            document.getElementById('baseTime').onchange = () => saveUserData();
+
+            const linkRegister = document.getElementById('link-register');
+            if (linkRegister) {
+                linkRegister.onclick = (e) => { e.preventDefault(); showRegisterView(true); };
+            }
+        });
     </script>
 </head>
 
 <body class="bg-gray-100 p-3 sm:p-6 font-sans">
     <div class="max-w-6xl mx-auto">
+
         <!-- SECCIÓN: Autenticación -->
         <div id="auth-section" class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md mt-6">
             <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">Acceso Usuarios</h2>
             <div class="space-y-4">
                 <div id="reg-username-container" class="hidden">
                     <label class="block text-sm font-medium text-gray-700">Nombre de Usuario</label>
-                    <input type="text" id="username" class="w-full mt-1 p-2 border rounded-md" placeholder="ej. atletagomez">
+                    <input type="text" id="username" class="w-full mt-1 p-2 border rounded-md"
+                        placeholder="ej. atletagomez">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Usuario o Email</label>
-                    <input type="text" id="identifier" class="w-full mt-1 p-2 border rounded-md" placeholder="Usuario o atleta@deporte.com">
+                    <input type="text" id="identifier" class="w-full mt-1 p-2 border rounded-md"
+                        placeholder="Usuario o atleta@deporte.com">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Contraseña</label>
-                    <input type="password" id="password" class="w-full mt-1 p-2 border rounded-md" placeholder="••••••••">
+                    <input type="password" id="password" class="w-full mt-1 p-2 border rounded-md"
+                        placeholder="••••••••">
                 </div>
-                
-                <button id="btn-login" onclick="handleLogin()" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 font-semibold">Iniciar Sesión</button>
-                <button id="btn-register" onclick="handleRegister()" class="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 font-semibold hidden">Registrarse</button>
+
+                <button id="btn-login" type="button"
+                    class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 font-semibold">Iniciar
+                    Sesión</button>
+                <button id="btn-register" type="button"
+                    class="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 font-semibold hidden">Registrarse</button>
 
                 <p id="toggle-msg" class="text-center text-sm text-gray-600 mt-2">
-                    ¿No tienes cuenta? <a href="#" onclick="showRegisterView(true)" class="text-blue-600 underline">Regístrate</a>
+                    ¿No tienes cuenta? <a href="#" id="link-register" class="text-blue-600 underline">Regístrate</a>
                 </p>
             </div>
         </div>
@@ -320,7 +413,8 @@
                     <span class="text-gray-600">Atleta:</span>
                     <strong id="user-display-name" class="text-blue-600 ml-1 capitalize"></strong>
                 </div>
-                <button onclick="handleLogout()" class="bg-red-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 text-sm rounded-md hover:bg-red-600">Salir</button>
+                <button id="btn-logout" type="button"
+                    class="bg-red-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 text-sm rounded-md hover:bg-red-600">Salir</button>
             </div>
 
             <!-- Panel de Controles -->
@@ -329,17 +423,20 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div>
                         <label class="block text-xs sm:text-sm text-gray-600">Distancia Base (m)</label>
-                        <input type="number" id="baseDistance" value="100" onchange="updateSettings()" class="w-full p-2 border rounded-md text-sm">
+                        <input type="number" id="baseDistance" value="100" class="w-full p-2 border rounded-md text-sm">
                     </div>
                     <div>
                         <label class="block text-xs sm:text-sm text-gray-600">Tiempo Base (s)</label>
-                        <input type="number" step="0.01" id="baseTime" value="13.05" onchange="updateSettings()" class="w-full p-2 border rounded-md text-sm">
+                        <input type="number" step="0.01" id="baseTime" value="13.05"
+                            class="w-full p-2 border rounded-md text-sm">
                     </div>
                     <div>
                         <label class="block text-xs sm:text-sm text-gray-600">Añadir Distancia (m)</label>
                         <div class="flex gap-2">
-                            <input type="number" id="newDistance" class="w-full p-2 border rounded-md text-sm" placeholder="Ej. 70">
-                            <button onclick="addDistance()" class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 text-sm">Añadir</button>
+                            <input type="number" id="newDistance" class="w-full p-2 border rounded-md text-sm"
+                                placeholder="Ej. 70">
+                            <button id="btn-add-distance" type="button"
+                                class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 text-sm">Añadir</button>
                         </div>
                     </div>
                 </div>
