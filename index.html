@@ -5,366 +5,102 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculadora de Tiempos</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import {
-            getAuth,
-            createUserWithEmailAndPassword,
-            signInWithEmailAndPassword,
-            signOut,
-            onAuthStateChanged
-        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import {
-            getFirestore,
-            doc,
-            setDoc,
-            getDoc
-        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyC20hdEsrcGjCdfrGZ1bQKaQI1dAULZUaY",
-            authDomain: "atletismo-27061.firebaseapp.com",
-            projectId: "atletismo-27061",
-            storageBucket: "atletismo-27061.firebasestorage.app",
-            messagingSenderId: "4223238228",
-            appId: "1:4223238228:web:59947fced3c5feca9aadc1",
-            measurementId: "G-C7SRZLBCRY"
-        };
-
-        let auth, db;
-
-        try {
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-        } catch (e) {
-            console.error("Error al inicializar Firebase:", e);
-        }
-
-        let currentUser = null;
-        let userSettings = {
-            username: "",
-            baseDistance: 100,
-            baseTime: 13.05,
-            distances: [30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400]
-        };
-
-        // Cambiar entre pantallas según sesión
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('app-section').classList.remove('hidden');
-
-                await loadUserData(user.uid);
-                document.getElementById('user-display-name').innerText = userSettings.username || user.email;
-                renderViews();
-            } else {
-                currentUser = null;
-                document.getElementById('auth-section').classList.remove('hidden');
-                document.getElementById('app-section').classList.add('hidden');
-            }
-        });
-
-        // Toggle entre vista Login y Registro
-        window.showRegisterView = (showReg) => {
-            if (showReg) {
-                document.getElementById('reg-username-container').classList.remove('hidden');
-                document.getElementById('btn-login').classList.add('hidden');
-                document.getElementById('btn-register').classList.remove('hidden');
-                document.getElementById('toggle-msg').innerHTML = '¿Ya tienes cuenta? <a href="#" onclick="showRegisterView(false)" class="text-blue-600 underline">Inicia Sesión</a>';
-            } else {
-                document.getElementById('reg-username-container').classList.add('hidden');
-                document.getElementById('btn-login').classList.remove('hidden');
-                document.getElementById('btn-register').classList.add('hidden');
-                document.getElementById('toggle-msg').innerHTML = '¿No tienes cuenta? <a href="#" onclick="showRegisterView(true)" class="text-blue-600 underline">Regístrate</a>';
-            }
-        };
-
-        // Registro de usuario
-        window.handleRegister = async () => {
-            const username = document.getElementById('username').value.trim().toLowerCase();
-            const email = document.getElementById('identifier').value.trim();
-            const password = document.getElementById('password').value.trim();
-
-            if (!username || !email || !password) {
-                alert("Completa todos los campos (Nombre de usuario, Email y Contraseña).");
-                return;
-            }
-
-            if (password.length < 6) {
-                alert("La contraseña debe tener al menos 6 caracteres.");
-                return;
-            }
-
-            try {
-                // Comprobar si el username ya está ocupado
-                const usernameRef = doc(db, "usernames", username);
-                const usernameSnap = await getDoc(usernameRef);
-
-                if (usernameSnap.exists()) {
-                    alert("Ese nombre de usuario ya está registrado por otra persona.");
-                    return;
-                }
-
-                // Crear usuario en Auth
-                const res = await createUserWithEmailAndPassword(auth, email, password);
-                
-                // Guardar mapeo Username -> Email
-                await setDoc(usernameRef, { email: email, uid: res.user.uid });
-
-                // Guardar perfil del usuario
-                userSettings.username = username;
-                await saveUserData(res.user.uid);
-
-                alert("¡Registro completado con éxito!");
-            } catch (err) {
-                alert("Error en el registro: " + err.message);
-            }
-        };
-
-        // Inicio de sesión (Soporta Email o Username)
-        window.handleLogin = async () => {
-            const input = document.getElementById('identifier').value.trim();
-            const password = document.getElementById('password').value.trim();
-
-            if (!input || !password) {
-                alert("Introduce tu usuario/email y tu contraseña.");
-                return;
-            }
-
-            let loginEmail = input;
-
-            // Si no contiene '@', asumimos que metió un Nombre de Usuario
-            if (!input.includes('@')) {
-                const usernameLower = input.toLowerCase();
-                try {
-                    const usernameDoc = await getDoc(doc(db, "usernames", usernameLower));
-                    if (usernameDoc.exists()) {
-                        loginEmail = usernameDoc.data().email;
-                    } else {
-                        alert("El nombre de usuario no existe.");
-                        return;
-                    }
-                } catch (err) {
-                    alert("Error buscando el usuario: " + err.message);
-                    return;
-                }
-            }
-
-            try {
-                await signInWithEmailAndPassword(auth, loginEmail, password);
-            } catch (err) {
-                alert("Error al iniciar sesión: " + err.message);
-            }
-        };
-
-        window.handleLogout = () => signOut(auth);
-
-        async function loadUserData(uid) {
-            try {
-                const docRef = doc(db, "users", uid);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    userSettings = docSnap.data();
-                    document.getElementById('baseDistance').value = userSettings.baseDistance;
-                    document.getElementById('baseTime').value = userSettings.baseTime;
-                } else {
-                    await saveUserData(uid);
-                }
-            } catch (err) {
-                console.error("Error cargando datos:", err);
-            }
-        }
-
-        async function saveUserData(uid = currentUser?.uid) {
-            if (!uid) return;
-            const baseDist = parseFloat(document.getElementById('baseDistance').value) || 100;
-            const baseT = parseFloat(document.getElementById('baseTime').value) || 13.05;
-
-            userSettings.baseDistance = baseDist;
-            userSettings.baseTime = baseT;
-
-            try {
-                await setDoc(doc(db, "users", uid), userSettings);
-                renderViews();
-            } catch (err) {
-                console.error("Error al guardar datos:", err);
-            }
-        }
-
-        window.updateSettings = () => saveUserData();
-
-        window.addDistance = () => {
-            const val = parseFloat(document.getElementById('newDistance').value);
-            if (val && !userSettings.distances.includes(val)) {
-                userSettings.distances.push(val);
-                userSettings.distances.sort((a, b) => a - b);
-                document.getElementById('newDistance').value = '';
-                saveUserData();
-            }
-        };
-
-        window.removeDistance = (dist) => {
-            userSettings.distances = userSettings.distances.filter(d => d !== dist);
-            saveUserData();
-        };
-
-        function formatTime(seconds) {
-            return seconds < 60
-                ? seconds.toFixed(2) + 's'
-                : `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, '0')}s`;
-        }
-
-        function renderViews() {
-            const baseDist = userSettings.baseDistance;
-            const baseT = userSettings.baseTime;
-            const percentages = [100, 95, 90, 85, 80, 75, 70, 65, 60];
-            const m = 1.08; // Exponente de fatiga de Riegel
-
-            const mobileContainer = document.getElementById('mobile-cards-container');
-            mobileContainer.innerHTML = '';
-
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '';
-
-            userSettings.distances.forEach(d => {
-                const time100 = baseT * Math.pow(d / baseDist, m);
-                const isBase = d === baseDist;
-
-                // Vista Móvil
-                const card = document.createElement('div');
-                card.className = `p-4 rounded-lg border shadow-sm ${isBase ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'}`;
-                
-                let cardHtml = `
-                    <div class="flex justify-between items-center mb-3 border-b pb-2">
-                        <span class="text-lg font-bold ${isBase ? 'text-blue-700' : 'text-gray-800'}">${d} metros ${isBase ? '(Base)' : ''}</span>
-                        <button onclick="removeDistance(${d})" class="text-red-500 hover:text-red-700 font-bold px-2">✕</button>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2 text-center">
-                `;
-
-                percentages.forEach(pct => {
-                    const timeSec = time100 / (pct / 100);
-                    cardHtml += `
-                        <div class="bg-gray-100 p-2 rounded">
-                            <div class="text-xs text-gray-500 font-semibold">${pct}%</div>
-                            <div class="text-sm font-bold text-gray-800">${formatTime(timeSec)}</div>
-                        </div>
-                    `;
-                });
-
-                cardHtml += `</div>`;
-                card.innerHTML = cardHtml;
-                mobileContainer.appendChild(card);
-
-                // Vista Escritorio
-                const tr = document.createElement('tr');
-                let rowHtml = `<td class="p-3 border text-center font-bold ${isBase ? 'bg-blue-100 text-blue-700' : ''}">
-                    ${d}m 
-                    <button onclick="removeDistance(${d})" class="ml-2 text-red-500 hover:text-red-700 font-normal">✕</button>
-                </td>`;
-
-                percentages.forEach(pct => {
-                    const timeSec = time100 / (pct / 100);
-                    rowHtml += `<td class="p-3 border text-center text-sm ${pct === 100 ? 'font-semibold bg-gray-50' : ''}">${formatTime(timeSec)}</td>`;
-                });
-
-                tr.innerHTML = rowHtml;
-                tbody.appendChild(tr);
-            });
-        }
-    </script>
+    <link rel="stylesheet" href="styles.css">
 </head>
 
-<body class="bg-gray-100 p-3 sm:p-6 font-sans">
-    <div class="max-w-6xl mx-auto">
-        <!-- SECCIÓN: Autenticación -->
-        <div id="auth-section" class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md mt-6">
-            <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">Acceso Usuarios</h2>
-            <div class="space-y-4">
-                <div id="reg-username-container" class="hidden">
-                    <label class="block text-sm font-medium text-gray-700">Nombre de Usuario</label>
-                    <input type="text" id="username" class="w-full mt-1 p-2 border rounded-md" placeholder="ej. atletagomez">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Usuario o Email</label>
-                    <input type="text" id="identifier" class="w-full mt-1 p-2 border rounded-md" placeholder="Usuario o atleta@deporte.com">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Contraseña</label>
-                    <input type="password" id="password" class="w-full mt-1 p-2 border rounded-md" placeholder="••••••••">
-                </div>
-                
-                <button id="btn-login" onclick="handleLogin()" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 font-semibold">Iniciar Sesión</button>
-                <button id="btn-register" onclick="handleRegister()" class="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 font-semibold hidden">Registrarse</button>
+<body>
 
-                <p id="toggle-msg" class="text-center text-sm text-gray-600 mt-2">
-                    ¿No tienes cuenta? <a href="#" onclick="showRegisterView(true)" class="text-blue-600 underline">Regístrate</a>
-                </p>
-            </div>
-        </div>
+    <div class="app-container">
+        <!-- SECCIÓN 1: Autenticación (Login / Registro) -->
+        <section id="auth-section" class="card auth-card">
+            <h2>Acceso Usuarios</h2>
 
-        <!-- SECCIÓN: Aplicación Principal -->
-        <div id="app-section" class="hidden space-y-4 sm:space-y-6">
-            <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow">
-                <div class="text-sm sm:text-base">
-                    <span class="text-gray-600">Atleta:</span>
-                    <strong id="user-display-name" class="text-blue-600 ml-1 capitalize"></strong>
-                </div>
-                <button onclick="handleLogout()" class="bg-red-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 text-sm rounded-md hover:bg-red-600">Salir</button>
+            <div class="form-group hidden" id="reg-username-container">
+                <label for="username">Nombre de Usuario</label>
+                <input type="text" id="username" placeholder="ej. atletagomez" autocomplete="username">
             </div>
+
+            <div class="form-group">
+                <label for="identifier">Usuario o Email</label>
+                <input type="text" id="identifier" placeholder="Usuario o atleta@deporte.com" autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+
+            <button id="btn-login" type="button" class="btn btn-primary btn-block">Iniciar Sesión</button>
+            <button id="btn-register" type="button" class="btn btn-success btn-block hidden">Registrarse</button>
+
+            <p id="toggle-msg" class="auth-toggle">
+                ¿No tienes cuenta? <a href="#" id="link-show-register">Regístrate</a>
+            </p>
+        </section>
+
+        <!-- SECCIÓN 2: Aplicación Principal -->
+        <main id="app-section" class="hidden">
+            <!-- Barra de Sesión de Usuario -->
+            <header class="user-header card">
+                <div class="user-info">
+                    <span>Atleta:</span>
+                    <strong id="user-display-name"></strong>
+                </div>
+                <button id="btn-logout" type="button" class="btn btn-danger btn-sm">Salir</button>
+            </header>
 
             <!-- Panel de Controles -->
-            <div class="bg-white p-4 sm:p-6 rounded-lg shadow space-y-4">
-                <h3 class="text-base sm:text-lg font-bold text-gray-800">Ajustes de Marca Base</h3>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                    <div>
-                        <label class="block text-xs sm:text-sm text-gray-600">Distancia Base (m)</label>
-                        <input type="number" id="baseDistance" value="100" onchange="updateSettings()" class="w-full p-2 border rounded-md text-sm">
+            <section class="card controls-card">
+                <h3>Ajustes de Marca Base</h3>
+                <div class="controls-grid">
+                    <div class="form-group">
+                        <label for="baseDistance">Distancia Base (m)</label>
+                        <input type="number" id="baseDistance" value="100">
                     </div>
-                    <div>
-                        <label class="block text-xs sm:text-sm text-gray-600">Tiempo Base (s)</label>
-                        <input type="number" step="0.01" id="baseTime" value="13.05" onchange="updateSettings()" class="w-full p-2 border rounded-md text-sm">
+                    <div class="form-group">
+                        <label for="baseTime">Tiempo Base (s)</label>
+                        <input type="number" id="baseTime" step="0.01" value="13.05">
                     </div>
-                    <div>
-                        <label class="block text-xs sm:text-sm text-gray-600">Añadir Distancia (m)</label>
-                        <div class="flex gap-2">
-                            <input type="number" id="newDistance" class="w-full p-2 border rounded-md text-sm" placeholder="Ej. 70">
-                            <button onclick="addDistance()" class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 text-sm">Añadir</button>
+                    <div class="form-group">
+                        <label for="newDistance">Añadir Distancia (m)</label>
+                        <div class="input-inline">
+                            <input type="number" id="newDistance" placeholder="Ej. 70">
+                            <button id="btn-add-distance" type="button" class="btn btn-success">Añadir</button>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- VISTA MÓVIL: Tarjetas -->
-            <div id="mobile-cards-container" class="space-y-3 md:hidden"></div>
+            <!-- Vista Adaptativa para Móviles (Tarjetas) -->
+            <section id="mobile-cards-container" class="mobile-only"></section>
 
-            <!-- VISTA ESCRITORIO: Tabla -->
-            <div class="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
-                <table class="w-full border-collapse">
-                    <thead>
-                        <tr class="bg-gray-800 text-white">
-                            <th class="p-3 border">Dist.</th>
-                            <th class="p-3 border">100%</th>
-                            <th class="p-3 border">95%</th>
-                            <th class="p-3 border">90%</th>
-                            <th class="p-3 border">85%</th>
-                            <th class="p-3 border">80%</th>
-                            <th class="p-3 border">75%</th>
-                            <th class="p-3 border">70%</th>
-                            <th class="p-3 border">65%</th>
-                            <th class="p-3 border">60%</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-body"></tbody>
-                </table>
-            </div>
-        </div>
+            <!-- Vista Adaptativa para Escritorio (Tabla) -->
+            <section class="desktop-only card table-card">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Dist.</th>
+                                <th>100%</th>
+                                <th>95%</th>
+                                <th>90%</th>
+                                <th>85%</th>
+                                <th>80%</th>
+                                <th>75%</th>
+                                <th>70%</th>
+                                <th>65%</th>
+                                <th>60%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
     </div>
+
+    <!-- Carga del script principal como módulo -->
+    <script type="module" src="main.js"></script>
 </body>
 
 </html>
