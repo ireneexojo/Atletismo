@@ -1,0 +1,9 @@
+Quiero hacer unas tablas de tiempos para diferentes distancias y diferentes porcentajes de esfuerzo.
+
+La distancia y el tiempo a partir del que vas a generar los datos es la siguiente: 100metros; 13.05 s; 100% esfuerzo
+
+Ahora quiero que me generas las tablas con los tiempos que debería hacer para las siguientes distancias:
+30m, 40m, 50m, 60m, 80m, 100m, 120m, 150m, 180m, 200m, 250m, 300m, 350m, 400m.
+Para esfuerzos del 100% al 60% yendo de 5% en 5%.
+
+Quiero que me lo generes en una página web, que pueda elegir en una pestaña la persona seleccionada y que me permita de forma sencilla elegir alguna otra distancia y que se rellene con sus tiempos.
